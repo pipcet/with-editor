@@ -514,6 +514,7 @@ at run-time.
         (when (server-running-p server-name)
           (server-force-delete server-name)))
       (server-start))
+    (push "WITH_EDITOR_MODE_ENABLE=t" process-environment)
     ;; Tell $EDITOR to use the Emacsclient.
     (push (concat with-editor--envvar "="
                   (shell-quote-argument with-editor-emacsclient-executable)
@@ -680,6 +681,19 @@ which may or may not insert the text into the PROCESS's buffer."
                         (string-match-p regexp file))
                       with-editor-file-name-history-exclude)
       (setq file-name-history (delete file file-name-history)))))
+
+(advice-add 'server-execute :after
+            'server-execute--enable-with-editor-mode)
+
+(defun server-execute--enable-with-editor-mode
+    (proc files _nowait _commands _dontkill _frame _tty-name)
+  (when (equal (let ((process-environment (process-get proc 'env)))
+                 (getenv "WITH_EDITOR_MODE_ENABLE"))
+               "t")
+    (pcase-dolist (`(,file . ,_) files)
+      (when-let (buf (get-file-buffer file))
+        (with-current-buffer buf
+          (with-editor-mode 1))))))
 
 ;;; Augmentations
 
